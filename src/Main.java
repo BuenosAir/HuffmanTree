@@ -6,6 +6,17 @@ public class Main {
   {
     System.out.println("Salut");
 
+    Word[] testArr = createArrayOfSortedWords();
+
+    System.out.println(Arrays.toString(testArr));
+
+    Node node = Node.createHuffmanTree(testArr);
+
+    node.printTableCode();
+  }
+
+  public static  Word[] createArrayOfSortedWords()
+  {
     OccurenceCounter counter=  new OccurenceCounter();
 
     counter.addWordToCounter("salut");
@@ -24,7 +35,7 @@ public class Main {
     counter.addWordToCounter("coucou2");
     counter.addWordToCounter("coucou2");
 
-    System.out.println(Arrays.toString(counter.getWordPerOccurences()));
+    return counter.getWordPerOccurences();
   }
 
 }

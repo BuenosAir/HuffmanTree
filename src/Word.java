@@ -25,4 +25,9 @@ public class Word
   {
     return this.content;
   }
+
+  public String toString()
+  {
+    return this.content + " " + this.occurences;
+  }
 }

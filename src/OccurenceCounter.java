@@ -1,6 +1,5 @@
 import java.util.Hashtable;
 import java.util.Set;
-import java.util.Arrays;
 
 public class OccurenceCounter 
 {
@@ -30,10 +29,10 @@ public class OccurenceCounter
   }
 
   //Return an array of all the keys sorted by occurences
-  public String[] getWordPerOccurences()
+  public Word[] getWordPerOccurences()
   {
     int hashSize = hash.size();
-    Word[] arrayToSort = new Word[hashSize];
+    Word[] outputArray = new Word[hashSize];
 
     Set<String> keys = hash.keySet();
 
@@ -42,21 +41,13 @@ public class OccurenceCounter
     for(String key: keys)
     {
       System.out.println(key + " " +  hash.get(key));
-      arrayToSort[counter] = new Word(key, hash.get(key));
+      outputArray[counter] = new Word(key, hash.get(key));
       counter++;
     }
 
     System.out.println("Sorting all occurences");
-    Arrays.sort(arrayToSort, new SortByOccurence());
 
-    //Keep only the strings, numbers of occurences is not important
-    String[] sortedArray = new String[hashSize];
-    for(int i = 0; i < hashSize; i++)
-    {
-      sortedArray[i] = arrayToSort[i].getContent();
-    }
-
-    return sortedArray;
+    return outputArray;
   }
 
   
