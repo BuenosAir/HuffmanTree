@@ -40,12 +40,9 @@ public class OccurenceCounter
 
     for(String key: keys)
     {
-      System.out.println(key + " " +  hash.get(key));
       outputArray[counter] = new Word(key, hash.get(key));
       counter++;
     }
-
-    System.out.println("Sorting all occurences");
 
     return outputArray;
   }

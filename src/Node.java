@@ -1,3 +1,7 @@
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Hashtable;
+
 public class Node {
 
   Node leftChild;
@@ -8,15 +12,12 @@ public class Node {
 
   public Node (Word word)
   {
-    System.out.println("Creating an empty node");
     this.word = word;
     this.weight = word.getOccurences();
   }
 
   public Node(Node leftChild, Node rightChild)
   {
-    System.out.println("Creating node with two childs");
-
     this.leftChild = leftChild;
     this.rightChild = rightChild;
 
@@ -24,13 +25,13 @@ public class Node {
     this.weight = leftChild.getWeight() + rightChild.getWeight();
   }
 
+
   public static Node createHuffmanTree(Word[] words)
   {
     System.out.println("Creating Huffman tree");
 
     int numberOfWords = words.length;
 
-    //TODO: Change this
     Node rootNode = null;
 
     Queue queue = new Queue();
@@ -92,6 +93,39 @@ public class Node {
       {
         rightChild.printNodeCode(code + "1");
       }
+    }
+
+  }
+
+  public Hashtable<String, String>  getEncodedCharacterList()
+  {
+    Hashtable <String, String> returnList = new Hashtable<String, String>();
+
+    findNextCode(returnList, "");
+
+    return returnList;
+  }
+  
+  public void findNextCode(Hashtable<String, String> table, String code)
+  {
+    if(this.leftChild == null && this.rightChild == null)
+    {
+      if(this.word == null)
+      {
+        //TODO: Thow exception
+        System.out.println("There is no linked word ?!" + code);
+      }
+
+      table.put(this.word.getContent(), code);
+    }
+
+    if(this.leftChild != null)
+    {
+      this.leftChild.findNextCode(table, code + "0");
+    }
+    if(this.rightChild != null)
+    {
+      this.rightChild.findNextCode(table, code + "1");
     }
   }
 

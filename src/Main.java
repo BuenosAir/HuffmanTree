@@ -1,4 +1,4 @@
-import java.util.Arrays;
+
 
 public class Main {
 
@@ -6,13 +6,8 @@ public class Main {
   {
     System.out.println("Salut");
 
-    Word[] testArr = createArrayOfSortedWords();
+    CompressedFile compressedFile = new CompressedFile("./bible.txt");
 
-    System.out.println(Arrays.toString(testArr));
-
-    Node node = Node.createHuffmanTree(testArr);
-
-    node.printTableCode();
   }
 
   public static  Word[] createArrayOfSortedWords()
