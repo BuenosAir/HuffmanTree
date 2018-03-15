@@ -13,7 +13,7 @@ public class OccurenceCounter
 
   public void addWordToCounter(String word)
   {
-    //Check if the work already exist in the hashtable
+    //Check if the word already exist in the hashtable
     int occurences;
     if(hash.containsKey(word))
     {

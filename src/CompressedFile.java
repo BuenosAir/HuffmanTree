@@ -4,11 +4,15 @@ import java.io.IOException;
 import java.io.FileOutputStream;
 import java.util.Hashtable;
 import java.util.Arrays;
+import java.io.File;
 
 public class CompressedFile
 {
 
-  public static final int OUTPUT_BUFFER_SIZE = 1000;
+  public static final int OUTPUT_BUFFER_SIZE = 100000;
+  
+  public static final int READING_BUFFER_SIZE = 100000;
+
 
   public CompressedFile(String path)
   {
@@ -19,23 +23,49 @@ public class CompressedFile
 
     OccurenceCounter occurenceCounter = new OccurenceCounter();
 
+    char[] readingBuffer = new char[READING_BUFFER_SIZE + 100];
+
     try {
+
+      //Get the file size for the progress bar
+      File file = new File(path);
+      long fileSize = file.length();
+
+      System.out.println("Filesize : " + fileSize);
 
       fileReader = new FileReader(path);
       bufferReader = new BufferedReader(fileReader);
 
-      String currentLine;
+      long totalBytesReaden = 0;
 
-      while ((currentLine = bufferReader.readLine()) != null) {
 
-        String[] words = currentLine.split("");
+      System.out.println("Analysing file ...");
+
+      long timestamp = System.currentTimeMillis();
+      long readDuringTwoTimestamp = 0;
+
+      while(bufferReader.read(readingBuffer) != -1 ){
+
+        String[] words = String.valueOf(readingBuffer).split("");
 
         for(String word : words)
         {
           occurenceCounter.addWordToCounter(word);
         }
 
-        occurenceCounter.addWordToCounter("\n");
+        totalBytesReaden += READING_BUFFER_SIZE;
+        readDuringTwoTimestamp +=READING_BUFFER_SIZE;
+
+        if(System.currentTimeMillis() - timestamp > 1000)
+        {
+          System.out.println(
+              "Read speed : " + (readDuringTwoTimestamp / Math.pow(1024, 2))
+              + " Mo/s, progress : " + (100 * totalBytesReaden / fileSize) +"%"
+              );
+          timestamp = System.currentTimeMillis();
+          readDuringTwoTimestamp = 0; 
+        }
+
       }
 
     } catch (IOException e) {
@@ -88,7 +118,7 @@ public class CompressedFile
     byte[] outputByteBuffer = new byte[OUTPUT_BUFFER_SIZE];
     int totalBufferSize = 8 * OUTPUT_BUFFER_SIZE;
 
-    String outputStringBuffer = new String();
+    StringBuilder outputStringBuffer = new StringBuilder();
     int writedInStringBuffer = 0;
 
 
@@ -104,18 +134,8 @@ public class CompressedFile
 
       int codeLength;
 
-      //Debug vars 
-      int fileLength = 100182;
-      int lineNumber = 0;
-
       while ((currentLine = bufferReader.readLine()) != null) {
 
-        lineNumber++;
-        if((lineNumber % (fileLength / 100 ) == 0))
-        {
-          System.out.println((100 * lineNumber / fileLength));
-
-        }
         String[] words = currentLine.split("");
 
 
@@ -133,24 +153,26 @@ public class CompressedFile
           {
             //Calculate the extra bytes size
             int toWriteInNextBuffer = writedInStringBuffer + codeLength - totalBufferSize;
-            outputStringBuffer += code.substring(0, codeLength - toWriteInNextBuffer);
+            outputStringBuffer.append(code.substring(0, codeLength - toWriteInNextBuffer));
 
             //Convert the buffer to bytes
+            String stringToByte = outputStringBuffer.toString();
             for(int i = 0; i < OUTPUT_BUFFER_SIZE ; i++)
             {
-              outputByteBuffer[i] = Byte.parseByte( outputStringBuffer.substring(i * 7, (i + 1) * 7), 2);
+              outputByteBuffer[i] = Byte.parseByte( stringToByte.substring(i * 7, (i + 1) * 7), 2);
             }
 
             //Write the byte buffer
             outputWriter.write(outputByteBuffer);
 
             //Empty the string buffer and add the extra bytes
-            outputStringBuffer = code.substring(toWriteInNextBuffer);
+            outputStringBuffer = new StringBuilder();
+            outputStringBuffer.append(code.substring(toWriteInNextBuffer));
             writedInStringBuffer = toWriteInNextBuffer;
           }
           else 
           {
-            outputStringBuffer = outputStringBuffer + code;
+            outputStringBuffer.append(code);
             writedInStringBuffer += codeLength;
           }
         }
@@ -159,21 +181,20 @@ public class CompressedFile
       
       //Append the necessary 0 to the end of the string buffer to
       //have a size divisable by 8
-      int toAppendToStringBuffer = outputStringBuffer.length() % 8;
+      int toAppendToStringBuffer = writedInStringBuffer  % 8;
       for(int i = 0; i < toAppendToStringBuffer; i++)
       {
         //Could be 0 or 1, we dont care
-        outputStringBuffer += "0";
+        outputStringBuffer.append("0");
       }
 
-      int outputStringBufferLength = outputStringBuffer.length();
+      String stringToByte = outputStringBuffer.toString();
+      int outputStringBufferLength = writedInStringBuffer + toAppendToStringBuffer;
       int totalBytesWritten;
-      System.out.println(outputStringBufferLength);
 
       for(totalBytesWritten = 0; (totalBytesWritten * 8) < outputStringBufferLength;totalBytesWritten++)
       {
-        System.out.println(totalBytesWritten + " " + outputStringBufferLength);
-        outputByteBuffer[totalBytesWritten] = Byte.parseByte( outputStringBuffer.substring(totalBytesWritten * 7, (totalBytesWritten+ 1) * 7), 2);
+        outputByteBuffer[totalBytesWritten] = Byte.parseByte( stringToByte.substring(totalBytesWritten * 7, (totalBytesWritten+ 1) * 7), 2);
       }
 
       //Write the last bytes in the file
