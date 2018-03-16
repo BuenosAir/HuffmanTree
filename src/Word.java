@@ -10,6 +10,11 @@ public class Word
     this.content = content;
   }
 
+  public Word(String content)
+  {
+    this.content = content;
+  }
+
   public int getOccurences()
   {
     return this.occurences;

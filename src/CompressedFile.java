@@ -1,17 +1,25 @@
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.FileOutputStream;
-import java.util.Hashtable;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Arrays;
-import java.io.File;
+import java.util.Base64;
+import java.util.Hashtable;
+import java.util.Set;
+
+@SuppressWarnings("unchecked") //We must suppress this warning caused by the import of the Hashtable storing the serialized codeTable, will be corrected by hashing the input file
 
 public class CompressedFile
 {
 
-  public static final int OUTPUT_BUFFER_SIZE = 100000;
-  
-  public static final int READING_BUFFER_SIZE = 100000;
+  public static final int OUTPUT_BUFFER_SIZE = 4 * 5000;
+
+  public static final int READING_BUFFER_SIZE = 4 * 5000;
 
 
   public CompressedFile(String path)
@@ -23,7 +31,7 @@ public class CompressedFile
 
     OccurenceCounter occurenceCounter = new OccurenceCounter();
 
-    char[] readingBuffer = new char[READING_BUFFER_SIZE + 100];
+    char[] readingBuffer = new char[READING_BUFFER_SIZE];
 
     try {
 
@@ -38,19 +46,17 @@ public class CompressedFile
 
       long totalBytesReaden = 0;
 
-
       System.out.println("Analysing file ...");
 
       long timestamp = System.currentTimeMillis();
       long readDuringTwoTimestamp = 0;
 
-      while(bufferReader.read(readingBuffer) != -1 ){
+      while(bufferReader.read(readingBuffer) != -1 )
+      {
 
-        String[] words = String.valueOf(readingBuffer).split("");
-
-        for(String word : words)
+        for(int i = 0; i < READING_BUFFER_SIZE; i++)
         {
-          occurenceCounter.addWordToCounter(word);
+          occurenceCounter.addWordToCounter(String.valueOf(readingBuffer[i]));
         }
 
         totalBytesReaden += READING_BUFFER_SIZE;
@@ -63,7 +69,7 @@ public class CompressedFile
               + " Mo/s, progress : " + (100 * totalBytesReaden / fileSize) +"%"
               );
           timestamp = System.currentTimeMillis();
-          readDuringTwoTimestamp = 0; 
+          readDuringTwoTimestamp = 0;
         }
 
       }
@@ -74,8 +80,7 @@ public class CompressedFile
 
     } finally {
 
-      try 
-      {
+      try {
         if (bufferReader != null)
         {
           bufferReader.close();
@@ -84,9 +89,8 @@ public class CompressedFile
         {
           fileReader.close();
         }
-      } 
-      catch (IOException ex)
-      {
+      }
+      catch (IOException ex) {
         ex.printStackTrace();
       }
     }
@@ -101,15 +105,168 @@ public class CompressedFile
 
     Hashtable <String, String> codeTable = huffManTree.getEncodedCharacterList();
 
-    exportToCompressedFile(codeTable, path, "output.zz");
+    writeFileOnDisk(codeTable, path, "output.zz");
+
+    //Debug
+    fromFileOnDisk("output.zz", "output2.txt");
 
   }
 
-  private void exportToCompressedFile (Hashtable <String, String> codeTable, String pathInput, String pathOutput)
+  public void fromFileOnDisk(String pathInput, String pathOutput)
+  {
+    System.out.println("Uncompress file to " + pathOutput);
+
+    //File readers/writers
+    FileOutputStream outputWriter = null;
+    BufferedReader bufferReader = null;
+    FileReader fileReader = null;
+
+    try {
+
+      outputWriter =  new FileOutputStream(pathOutput);
+      fileReader = new FileReader(pathInput);
+      bufferReader = new BufferedReader(fileReader);
+
+      //Will contain the header size, stored in string
+      StringBuilder sizeOfHeaderBuilder = new StringBuilder();
+      char[] tmpChar = new char[1];
+
+      //Read the file until a comma is found to get the size of the header
+      while(bufferReader.read(tmpChar) != -1)
+      {
+        if(tmpChar[0] == ',')
+        {
+          break;
+        }
+        else
+        {
+          sizeOfHeaderBuilder.append(tmpChar[0]);
+        }
+      }
+
+      String sizeOfHeaderString = sizeOfHeaderBuilder.toString();
+      System.out.println("Header size : " + sizeOfHeaderString);
+
+      //Convert the size in string to int
+      int sizeOfHeaderInt = Integer.parseInt(sizeOfHeaderString);
+
+      StringBuilder headerBuilder = new StringBuilder();
+
+      //Store the header in buffer
+      int readReturn;
+      for(int i = 0; i < sizeOfHeaderInt; i++)
+      {
+        readReturn = bufferReader.read(tmpChar);
+        if(readReturn == -1)
+        {
+          System.out.println("Error while reading file");
+          return;
+        }
+
+        headerBuilder.append(tmpChar[0]);
+      }
+
+      String encodedHeader = headerBuilder.toString();
+
+      //Decode the header from Base64 string to binary data, then cast in Hashtable
+      Hashtable <String, String> codeTable = null;
+      try{
+        ByteArrayInputStream bis = new ByteArrayInputStream(Base64.getDecoder().decode(encodedHeader));
+        ObjectInputStream ois = new ObjectInputStream(bis);
+        codeTable = (Hashtable<String, String>) ois.readObject();
+      } catch(Exception e)
+      {
+        e.printStackTrace();
+      }
+      finally {
+        //Supress a warning
+        if(codeTable == null)
+        {
+          codeTable = null;
+        }
+      }
+
+      System.out.println("Reconstructing the tree ...");
+      Node root = new Node();
+
+      Set<String> keys = codeTable.keySet();
+
+      for(String key : keys)
+      {
+        String code = codeTable.get(key);
+        int codeLength = code.length();
+
+        //Create the nodes
+
+        Node actualNode = root;
+        for(int i = 0; i < codeLength; i++)
+        {
+          if(code.charAt(i) == '0')
+          {
+            if(actualNode.getLeftChild() == null)
+            {
+              actualNode.setLeftChild(new Node());
+            }
+            actualNode = actualNode.getLeftChild();
+          }
+          else if(code.charAt(i) == '1')
+          {
+            if(actualNode.getRightChild() == null)
+            {
+              actualNode.setRightChild(new Node());
+            }
+            actualNode = actualNode.getRightChild();
+          }
+        }
+        actualNode.setWord(new Word(key));
+      }
+
+      System.out.println("Extracting file ");
+
+      //Extracting the file
+      char[] readingBuffer = new char[READING_BUFFER_SIZE];
+      char[] outputWrittingBuffer = new char[OUTPUT_BUFFER_SIZE];
+
+      int indexInReadingBuffer = 0;
+      int indexWrittingBuffer = 0;
+      while(bufferReader.read(readingBuffer) != 1)
+      {
+        for(int i = 0; i < READING_BUFFER_SIZE; i++)
+        {
+
+        }
+      }
+
+    } catch(IOException e) {
+      e.printStackTrace();
+    } finally {
+
+      try
+      {
+        if (bufferReader != null)
+        {
+          bufferReader.close();
+        }
+        if (fileReader!= null)
+        {
+          fileReader.close();
+        }
+        if(outputWriter != null)
+        {
+          outputWriter.close();
+        }
+      }
+      catch (IOException ex)
+      {
+        ex.printStackTrace();
+      }
+    }
+  }
+
+  private void writeFileOnDisk(Hashtable <String, String> codeTable, String pathInput, String pathOutput)
   {
 
     System.out.println("Opening output file");
-
 
     FileOutputStream outputWriter = null;
     BufferedReader bufferReader = null;
@@ -121,10 +278,8 @@ public class CompressedFile
     StringBuilder outputStringBuffer = new StringBuilder();
     int writedInStringBuffer = 0;
 
-
-
     try {
-      
+
       outputWriter =  new FileOutputStream(pathOutput);
       fileReader = new FileReader(pathInput);
       bufferReader = new BufferedReader(fileReader);
@@ -134,19 +289,38 @@ public class CompressedFile
 
       int codeLength;
 
+      System.out.println("Writing Huffman code ");
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      ObjectOutputStream oos = new ObjectOutputStream( baos );
+      oos.writeObject(codeTable);
+      oos.close();
+
+      String hashCodeToString = Base64.getEncoder().encodeToString(baos.toByteArray());
+
+      //First write the length of the tableCode in file
+      System.out.println("Size of input header : " + hashCodeToString.length());
+      outputWriter.write(Integer.toString(hashCodeToString.length()).getBytes());
+      outputWriter.write(',');
+      outputWriter.write(hashCodeToString.getBytes());
+
+      System.out.println("Writing data ...");
       while ((currentLine = bufferReader.readLine()) != null) {
 
         String[] words = currentLine.split("");
-
 
         for(String word : words)
         {
           code = codeTable.get(word);
           if(code == null)
           {
-            System.out.println("The word does not exists in the codetable, it is the right one ?");
-            //TODO: Thow exception
-            return;
+            if(word.length() == 0)
+            {
+              continue;
+            }
+            else
+            {
+              System.out.println("The word " + word + " does not exists in the codetable, it is the right one ?");
+            }
           }
           codeLength = code.length();
           if(writedInStringBuffer + codeLength > totalBufferSize)
@@ -170,7 +344,7 @@ public class CompressedFile
             outputStringBuffer.append(code.substring(toWriteInNextBuffer));
             writedInStringBuffer = toWriteInNextBuffer;
           }
-          else 
+          else
           {
             outputStringBuffer.append(code);
             writedInStringBuffer += codeLength;
@@ -178,7 +352,7 @@ public class CompressedFile
         }
 
       }
-      
+
       //Append the necessary 0 to the end of the string buffer to
       //have a size divisable by 8
       int toAppendToStringBuffer = writedInStringBuffer  % 8;
@@ -198,7 +372,7 @@ public class CompressedFile
       }
 
       //Write the last bytes in the file
-      outputWriter.write(Arrays.copyOfRange(outputByteBuffer,0, totalBytesWritten)); 
+      outputWriter.write(Arrays.copyOfRange(outputByteBuffer,0, totalBytesWritten));
 
     } catch (IOException e) {
 
@@ -206,7 +380,7 @@ public class CompressedFile
 
     } finally {
 
-      try 
+      try
       {
         if (bufferReader != null)
         {
@@ -220,14 +394,14 @@ public class CompressedFile
         {
           outputWriter.close();
         }
-      } 
+      }
       catch (IOException ex)
       {
         ex.printStackTrace();
       }
     }
 
-  System.out.println("Ok");
+    System.out.println("Ok");
 
   }
 

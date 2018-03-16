@@ -1,5 +1,3 @@
-import java.util.List;
-import java.util.ArrayList;
 import java.util.Hashtable;
 
 public class Node {
@@ -9,6 +7,10 @@ public class Node {
 
   Word word;
   int weight;
+
+  public Node()
+  {
+  }
 
   public Node (Word word)
   {
@@ -133,6 +135,36 @@ public class Node {
   public int getWeight()
   {
     return this.weight;
+  }
+
+  public Node getLeftChild()
+  {
+    return this.leftChild;
+  }
+
+  public Node getRightChild()
+  {
+    return this.rightChild;
+  }
+
+  public void setLeftChild(Node child)
+  {
+    this.leftChild = child;
+  }
+
+  public void setRightChild(Node child)
+  {
+    this.rightChild = child;
+  }
+
+  public Word getWord()
+  {
+    return this.word;
+  }
+
+  public void setWord(Word tmpWord)
+  {
+    this.word = tmpWord;
   }
 
 }
