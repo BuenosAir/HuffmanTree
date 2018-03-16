@@ -3,6 +3,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -11,6 +12,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Hashtable;
 import java.util.Set;
+import java.io.InputStream;
 
 @SuppressWarnings("unchecked") //We must suppress this warning caused by the import of the Hashtable storing the serialized codeTable, will be corrected by hashing the input file
 
@@ -118,29 +120,27 @@ public class CompressedFile
 
     //File readers/writers
     FileOutputStream outputWriter = null;
-    BufferedReader bufferReader = null;
-    FileReader fileReader = null;
+    InputStream inputStream = null;
 
     try {
 
       outputWriter =  new FileOutputStream(pathOutput);
-      fileReader = new FileReader(pathInput);
-      bufferReader = new BufferedReader(fileReader);
+      inputStream = new FileInputStream(pathInput);
 
       //Will contain the header size, stored in string
       StringBuilder sizeOfHeaderBuilder = new StringBuilder();
-      char[] tmpChar = new char[1];
+      byte[] tmpChar = new byte[1];
 
       //Read the file until a comma is found to get the size of the header
-      while(bufferReader.read(tmpChar) != -1)
+      while(inputStream.read(tmpChar) != -1)
       {
-        if(tmpChar[0] == ',')
+        if((char) tmpChar[0] == ',')
         {
           break;
         }
         else
         {
-          sizeOfHeaderBuilder.append(tmpChar[0]);
+          sizeOfHeaderBuilder.append((char)tmpChar[0]);
         }
       }
 
@@ -156,17 +156,19 @@ public class CompressedFile
       int readReturn;
       for(int i = 0; i < sizeOfHeaderInt; i++)
       {
-        readReturn = bufferReader.read(tmpChar);
+        readReturn = inputStream.read(tmpChar);
         if(readReturn == -1)
         {
           System.out.println("Error while reading file");
           return;
         }
 
-        headerBuilder.append(tmpChar[0]);
+        headerBuilder.append((char)tmpChar[0]);
       }
 
       String encodedHeader = headerBuilder.toString();
+
+      System.out.println(encodedHeader);
 
       //Decode the header from Base64 string to binary data, then cast in Hashtable
       Hashtable <String, String> codeTable = null;
@@ -224,16 +226,27 @@ public class CompressedFile
       System.out.println("Extracting file ");
 
       //Extracting the file
-      char[] readingBuffer = new char[READING_BUFFER_SIZE];
-      char[] outputWrittingBuffer = new char[OUTPUT_BUFFER_SIZE];
+      byte[] readingBuffer = new byte[READING_BUFFER_SIZE];
+      byte[] outputWrittingBuffer = new byte[OUTPUT_BUFFER_SIZE];
 
       int indexInReadingBuffer = 0;
       int indexWrittingBuffer = 0;
-      while(bufferReader.read(readingBuffer) != 1)
+
+      StringBuilder binaryRepresentationBuilder = new StringBuilder();
+
+
+      while(inputStream.read(readingBuffer) != 1)
       {
         for(int i = 0; i < READING_BUFFER_SIZE; i++)
         {
-
+         //Convert the reading buffer in bit representation
+          binaryRepresentationBuilder.append(String.format("%8s", Integer.toBinaryString(readingBuffer[i] & 0xFF)).replace(' ', '0'));
+        }
+        try {
+          Thread.sleep(1000);
+        } catch(Exception e)
+        {
+          e.printStackTrace();
         }
       }
 
@@ -243,13 +256,9 @@ public class CompressedFile
 
       try
       {
-        if (bufferReader != null)
+        if (inputStream != null)
         {
-          bufferReader.close();
-        }
-        if (fileReader!= null)
-        {
-          fileReader.close();
+          inputStream.close();
         }
         if(outputWriter != null)
         {
@@ -296,6 +305,8 @@ public class CompressedFile
       oos.close();
 
       String hashCodeToString = Base64.getEncoder().encodeToString(baos.toByteArray());
+
+      System.out.println(hashCodeToString);
 
       //First write the length of the tableCode in file
       System.out.println("Size of input header : " + hashCodeToString.length());
