@@ -96,7 +96,6 @@ public class Node {
         rightChild.printNodeCode(code + "1");
       }
     }
-
   }
 
   public Hashtable<String, String>  getEncodedCharacterList()
