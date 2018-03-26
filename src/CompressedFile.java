@@ -22,8 +22,8 @@ public class CompressedFile
   //public static final int OUTPUT_BUFFER_SIZE = 4 * 5000;
 
   //public static final int READING_BUFFER_SIZE = 4 * 5000;
-  public static final int OUTPUT_BUFFER_SIZE = 7 * 10;
-  public static final int READING_BUFFER_SIZE = 7 * 10;
+  public static final int OUTPUT_BUFFER_SIZE =  8 * 10;
+  public static final int READING_BUFFER_SIZE =  8 * 10;
 
 
   public CompressedFile(String path)
@@ -244,9 +244,6 @@ public class CompressedFile
 
       actualNode = root;
 
-      //TODO: debug var
-      int printed = 0;
-
       root.printTableCode();
 
       int read = inputStream.read(readingBuffer);
@@ -391,6 +388,7 @@ public class CompressedFile
         for(int v = 0; v < read; v++)
         {
           String word = String.valueOf(readingBuffer[v]);
+          System.out.print(readingBuffer[v]);
           code = codeTable.get(word);
           if(code == null)
           {
@@ -400,35 +398,44 @@ public class CompressedFile
           codeLength = code.length();
           if(writedInStringBuffer + codeLength > totalBufferSize)
           {
+            System.out.println("\n");
+            System.out.println("A " + writedInStringBuffer + " " + outputStringBuffer.toString().length() + " " + codeLength + " " + totalBufferSize);
             //Calculate the extra bytes size
-            int toWriteInNextBuffer = writedInStringBuffer + codeLength - totalBufferSize;
-            System.out.println(toWriteInNextBuffer);
-            outputStringBuffer.append(code.substring(0, toWriteInNextBuffer));
+
+            int excess = writedInStringBuffer + codeLength - totalBufferSize;
+            System.out.println("Excess : " + excess);
+            outputStringBuffer.append(code.substring(0, codeLength - excess));
 
             //Convert the buffer to bytes
             String stringToByte = outputStringBuffer.toString();
 
-            //System.out.println(stringToByte);
-            System.out.println(stringToByte.length() + " " + OUTPUT_BUFFER_SIZE + " " + totalBufferSize);
 
-            for(int i = 0; (i + 1) * 7 < totalBufferSize; i++)
+            int i;
+            for(i = 0; (i + 1) * 7 < totalBufferSize; i++)
             {
               outputByteBuffer[i] = Byte.parseByte( stringToByte.substring(i * 7, (i + 1) * 7), 2);
             }
 
+            System.out.println("Last byte is : " + stringToByte.substring(i * 7, (i + 1) * 7));
+
+            System.out.println(i + " " + totalBufferSize + " " + stringToByte.length());
             //Write the byte buffer
             outputWriter.write(outputByteBuffer);
 
             //Empty the string buffer and add the extra bytes
             outputStringBuffer = new StringBuilder();
-            outputStringBuffer.append(code.substring(toWriteInNextBuffer));
-            writedInStringBuffer = codeLength - toWriteInNextBuffer;
+            outputStringBuffer.append(code.substring(codeLength - excess));
+            writedInStringBuffer = excess;
           }
           else
           {
             outputStringBuffer.append(code);
             writedInStringBuffer += codeLength;
           }
+          //if(v > read - 5)
+          //{
+            //System.out.print(readingBuffer[v]);
+          //}
         }
 
         read = bufferReader.read(readingBuffer);
