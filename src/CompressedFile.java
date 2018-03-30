@@ -24,10 +24,24 @@ public class CompressedFile
   public static final int OUTPUT_BUFFER_SIZE =  8 * 10;
   public static final int READING_BUFFER_SIZE =  8 * 10;
 
+  Hashtable <String, String> codeTable = null;
+
+  //Contains the path to the file to compress
+  private String inputPath = null;
 
   public CompressedFile(String path)
   {
-    System.out.println("Opening " + path);
+    this.inputPath = path;
+  }
+
+  public void createCodeTable()
+  {
+    if(inputPath == null)
+    {
+      //TODO: Thow exception
+    }
+
+    System.out.println("Opening " + inputPath);
 
     BufferedReader bufferReader = null;
     FileReader fileReader = null;
@@ -39,12 +53,12 @@ public class CompressedFile
     try {
 
       //Get the file size for the progress bar
-      File file = new File(path);
+      File file = new File(inputPath);
       long fileSize = file.length();
 
       System.out.println("Filesize : " + fileSize);
 
-      fileReader = new FileReader(path);
+      fileReader = new FileReader(inputPath);
       bufferReader = new BufferedReader(fileReader);
 
       long totalBytesReaden = 0;
@@ -81,6 +95,7 @@ public class CompressedFile
     } catch (IOException e) {
 
       e.printStackTrace();
+      return;
 
     } finally {
 
@@ -99,31 +114,26 @@ public class CompressedFile
       }
     }
 
-
-    //Add the special that tell that we finished to read the file
+    //Add the special "word" that tell that we finished to read the file
     occurenceCounter.addWordToCounter("EOF");
 
     Word[] words = occurenceCounter.getWordPerOccurences();
-
 
     System.out.println("Total number of different words : " + words.length);
 
     Node huffManTree = Node.createHuffmanTree(words);
 
-    //huffManTree.printTableCode();
+    huffManTree.printTableCode();
 
-    Hashtable <String, String> codeTable = huffManTree.getEncodedCharacterList();
+    //Store the codeTable 
+    this.codeTable = huffManTree.getEncodedCharacterList();
 
-    writeFileOnDisk(codeTable, path, "output.zz");
-
-    //Debug
-    fromFileOnDisk("output.zz", "output2.txt");
 
   }
 
-  public void fromFileOnDisk(String pathInput, String pathOutput)
+  public void decompressFileToDisk(String outputPath)
   {
-    System.out.println("Uncompress file to " + pathOutput);
+    System.out.println("Uncompress file to " + outputPath);
 
     //File readers/writers
     FileOutputStream outputWriter = null;
@@ -131,8 +141,8 @@ public class CompressedFile
 
     try {
 
-      outputWriter =  new FileOutputStream(pathOutput);
-      inputStream = new FileInputStream(pathInput);
+      outputWriter =  new FileOutputStream(outputPath);
+      inputStream = new FileInputStream(inputPath);
 
       //Will contain the header size, stored in string
       StringBuilder sizeOfHeaderBuilder = new StringBuilder();
@@ -350,8 +360,19 @@ public class CompressedFile
     }
   }
 
-  private void writeFileOnDisk(Hashtable <String, String> codeTable, String pathInput, String pathOutput)
+  public void compressFileToDisk(String outputPath)
   {
+
+    if(codeTable == null)
+    {
+      System.out.println("The file has not been correcty initalized, doing it first");
+      this.createCodeTable();
+    }
+    
+    if(outputPath == null)
+    {
+      //TODO: Throw exception
+    }
 
     System.out.println("Opening output file");
 
@@ -369,12 +390,12 @@ public class CompressedFile
 
     try {
 
-      outputWriter =  new FileOutputStream(pathOutput);
-      fileReader = new FileReader(pathInput);
+      outputWriter =  new FileOutputStream(outputPath);
+      fileReader = new FileReader(inputPath);
       bufferReader = new BufferedReader(fileReader);
 
       String currentLine = null;
-      String code = null;;
+      String code = null;
 
       int codeLength;
 
@@ -433,7 +454,6 @@ public class CompressedFile
 
             //Convert the buffer to bytes
             String stringToByte = outputStringBuffer.toString();
-
 
             int i;
             for(i = 0; (i + 1) * 7 < totalBufferSize; i++)
