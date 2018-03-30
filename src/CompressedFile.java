@@ -18,7 +18,6 @@ import java.io.InputStream;
 
 public class CompressedFile
 {
-
   //public static final int OUTPUT_BUFFER_SIZE = 4 * 5000;
 
   //public static final int READING_BUFFER_SIZE = 4 * 5000;
@@ -58,7 +57,6 @@ public class CompressedFile
       int read = bufferReader.read(readingBuffer);
       while(read != -1)
       {
-
         for(int i = 0; i < read; i++)
         {
           occurenceCounter.addWordToCounter(String.valueOf(readingBuffer[i]));
@@ -101,7 +99,12 @@ public class CompressedFile
       }
     }
 
+
+    //Add the special that tell that we finished to read the file
+    occurenceCounter.addWordToCounter("EOF");
+
     Word[] words = occurenceCounter.getWordPerOccurences();
+
 
     System.out.println("Total number of different words : " + words.length);
 
@@ -198,7 +201,17 @@ public class CompressedFile
 
       for(String key : keys)
       {
-        String code = codeTable.get(key);
+        String code = null;
+        try {
+          code = codeTable.get(key);
+        }
+        catch(Exception e)
+        {
+          System.out.println("Symbol " + code + " not found in codeTable");
+          e.printStackTrace();
+        }
+
+        //Must always be 1 except if it is EOF
         int codeLength = code.length();
 
         //Create the nodes
@@ -225,7 +238,7 @@ public class CompressedFile
         actualNode.setWord(new Word(key));
       }
 
-      System.out.println("Extracting file ");
+      System.out.println("Extracting file");
 
       //Extracting the file
       byte[] readingBuffer = new byte[READING_BUFFER_SIZE];
@@ -266,7 +279,7 @@ public class CompressedFile
           {
             actualNode = actualNode.getLeftChild();
           }
-          else 
+          else
           {
             actualNode = actualNode.getRightChild();
           }
@@ -285,19 +298,25 @@ public class CompressedFile
 
             System.out.print(tmpString);
 
+            if(tmpString.equals("EOF"))
+            {
+              System.out.println("End of file reached, returning");
+
+              break;
+            }
             //if(indexWrittingBuffer + tmpStringLength > OUTPUT_BUFFER_SIZE)
             //{
-             //outputStringBufferBuilder.append(tmpString.substring(0, OUTPUT_BUFFER_SIZE - indexWrittingBuffer)); 
+             //outputStringBufferBuilder.append(tmpString.substring(0, OUTPUT_BUFFER_SIZE - indexWrittingBuffer));
              //String outputStringBuffer = outputStringBufferBuilder.toString();
 
              //System.out.println(outputStringBuffer);
 
              ////Convert the string to bytes
-                           
+
              ////Write file to disk
-               
+
             //}
-            //else 
+            //else
             //{
               //outputStringBufferBuilder.append(tmpString);
             //}
@@ -354,8 +373,8 @@ public class CompressedFile
       fileReader = new FileReader(pathInput);
       bufferReader = new BufferedReader(fileReader);
 
-      String currentLine;
-      String code;
+      String currentLine = null;
+      String code = null;;
 
       int codeLength;
 
@@ -389,13 +408,19 @@ public class CompressedFile
         {
           String word = String.valueOf(readingBuffer[v]);
           System.out.print(readingBuffer[v]);
-          code = codeTable.get(word);
-          if(code == null)
-          {
-              System.out.println("The word " + word + " does not exists in the codetable, it is the right one ?");
-              return;
+
+          try{
+            code = codeTable.get(word);
           }
+          catch(Exception e)
+          {
+            System.out.println("Symbol " + word + " not found in codeTable");
+            e.printStackTrace();
+          }
+
+          //Must always return 1
           codeLength = code.length();
+
           if(writedInStringBuffer + codeLength > totalBufferSize)
           {
             System.out.println("\n");
@@ -432,14 +457,23 @@ public class CompressedFile
             outputStringBuffer.append(code);
             writedInStringBuffer += codeLength;
           }
-          //if(v > read - 5)
-          //{
-            //System.out.print(readingBuffer[v]);
-          //}
         }
 
         read = bufferReader.read(readingBuffer);
       }
+
+      //Add the EOF symbol to the buffer
+      String endOfFile = null;
+      try {
+        endOfFile = codeTable.get("EOF");
+      }
+      catch(Exception e)
+      {
+        System.out.println("EOF symbol not found in table");
+        e.printStackTrace();
+      }
+
+      outputStringBuffer.append(endOfFile);
 
       //Append the necessary 0 to the end of the string buffer to
       //have a size divisable by 7

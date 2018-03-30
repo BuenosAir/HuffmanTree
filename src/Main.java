@@ -4,8 +4,9 @@ public class Main {
 
   public static void main(String []args)
   {
-    System.out.println("Salut");
+    System.out.println("Starting programm");
 
+    System.out.println(args);
     CompressedFile compressedFile = new CompressedFile("./bible.txt");
 
   }
