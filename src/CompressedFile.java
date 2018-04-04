@@ -21,8 +21,8 @@ public class CompressedFile
   //public static final int OUTPUT_BUFFER_SIZE = 4 * 5000;
 
   //public static final int READING_BUFFER_SIZE = 4 * 5000;
-  public static final int OUTPUT_BUFFER_SIZE =  8 * 10;
-  public static final int READING_BUFFER_SIZE =  8 * 10;
+  public static final int OUTPUT_BUFFER_SIZE =  8 * 100000;
+  public static final int READING_BUFFER_SIZE =  8 * 100000;
 
   Hashtable <String, String> codeTable = null;
 
@@ -127,8 +127,6 @@ public class CompressedFile
 
     //Store the codeTable 
     this.codeTable = huffManTree.getEncodedCharacterList();
-
-
   }
 
   public void decompressFileToDisk(String outputPath)
@@ -185,7 +183,7 @@ public class CompressedFile
 
       String encodedHeader = headerBuilder.toString();
 
-      //Decode the header from Base64 string to binary data, then cast in Hashtable
+      //Decode (deserialize) the header from Base64 string to binary data, then cast in Hashtable
       Hashtable <String, String> codeTable = null;
       try{
         ByteArrayInputStream bis = new ByteArrayInputStream(Base64.getDecoder().decode(encodedHeader));
@@ -363,17 +361,17 @@ public class CompressedFile
   public void compressFileToDisk(String outputPath)
   {
 
+    if(outputPath == null)
+    {
+      //TODO: Throw exception
+    }
+
     if(codeTable == null)
     {
       System.out.println("The file has not been correcty initalized, doing it first");
       this.createCodeTable();
     }
     
-    if(outputPath == null)
-    {
-      //TODO: Throw exception
-    }
-
     System.out.println("Opening output file");
 
     FileOutputStream outputWriter = null;
@@ -394,7 +392,6 @@ public class CompressedFile
       fileReader = new FileReader(inputPath);
       bufferReader = new BufferedReader(fileReader);
 
-      String currentLine = null;
       String code = null;
 
       int codeLength;
@@ -407,8 +404,6 @@ public class CompressedFile
 
       String hashCodeToString = Base64.getEncoder().encodeToString(baos.toByteArray());
 
-      System.out.println(hashCodeToString);
-
       //First write the length of the tableCode in file
       System.out.println("Size of input header : " + hashCodeToString.length());
       outputWriter.write(Integer.toString(hashCodeToString.length()).getBytes());
@@ -416,10 +411,6 @@ public class CompressedFile
       outputWriter.write(hashCodeToString.getBytes());
 
       System.out.println("Writing data ...");
-
-      //TODO: To remove
-      int nullcounter = 0;
-      boolean hasBeenPrinted = false;
 
       int read = bufferReader.read(readingBuffer);
 
@@ -439,13 +430,13 @@ public class CompressedFile
             e.printStackTrace();
           }
 
-          //Must always return 1
           codeLength = code.length();
 
           if(writedInStringBuffer + codeLength > totalBufferSize)
           {
             System.out.println("\n");
-            System.out.println("A " + writedInStringBuffer + " " + outputStringBuffer.toString().length() + " " + codeLength + " " + totalBufferSize);
+            //System.out.println("A " + writedInStringBuffer + " " + outputStringBuffer.toString().length() + " " + codeLength + " " + totalBufferSize);
+            
             //Calculate the extra bytes size
 
             int excess = writedInStringBuffer + codeLength - totalBufferSize;
@@ -461,14 +452,22 @@ public class CompressedFile
               outputByteBuffer[i] = Byte.parseByte( stringToByte.substring(i * 7, (i + 1) * 7), 2);
             }
 
+            System.out.println("StringtoByte" + stringToByte.length());
+            System.out.println("outputByteBuffer" + outputByteBuffer.length);
+
             System.out.println("Last byte is : " + stringToByte.substring(i * 7, (i + 1) * 7));
 
             System.out.println(i + " " + totalBufferSize + " " + stringToByte.length());
+            
+            System.out.println("Writing : " + stringToByte);
+
             //Write the byte buffer
             outputWriter.write(outputByteBuffer);
 
             //Empty the string buffer and add the extra bytes
             outputStringBuffer = new StringBuilder();
+
+            System.out.println("Append " + code.substring(codeLength - excess));
             outputStringBuffer.append(code.substring(codeLength - excess));
             writedInStringBuffer = excess;
           }
