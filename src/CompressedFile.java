@@ -18,17 +18,30 @@ import java.io.InputStream;
 
 public class CompressedFile
 {
-
   //public static final int OUTPUT_BUFFER_SIZE = 4 * 5000;
 
   //public static final int READING_BUFFER_SIZE = 4 * 5000;
-  public static final int OUTPUT_BUFFER_SIZE =  8 * 10;
-  public static final int READING_BUFFER_SIZE =  8 * 10;
+  public static final int OUTPUT_BUFFER_SIZE =  8 * 100000;
+  public static final int READING_BUFFER_SIZE =  8 * 100000;
 
+  Hashtable <String, String> codeTable = null;
+
+  //Contains the path to the file to compress
+  private String inputPath = null;
 
   public CompressedFile(String path)
   {
-    System.out.println("Opening " + path);
+    this.inputPath = path;
+  }
+
+  public void createCodeTable()
+  {
+    if(inputPath == null)
+    {
+      //TODO: Thow exception
+    }
+
+    System.out.println("Opening " + inputPath);
 
     BufferedReader bufferReader = null;
     FileReader fileReader = null;
@@ -40,12 +53,12 @@ public class CompressedFile
     try {
 
       //Get the file size for the progress bar
-      File file = new File(path);
+      File file = new File(inputPath);
       long fileSize = file.length();
 
       System.out.println("Filesize : " + fileSize);
 
-      fileReader = new FileReader(path);
+      fileReader = new FileReader(inputPath);
       bufferReader = new BufferedReader(fileReader);
 
       long totalBytesReaden = 0;
@@ -58,7 +71,6 @@ public class CompressedFile
       int read = bufferReader.read(readingBuffer);
       while(read != -1)
       {
-
         for(int i = 0; i < read; i++)
         {
           occurenceCounter.addWordToCounter(String.valueOf(readingBuffer[i]));
@@ -83,6 +95,7 @@ public class CompressedFile
     } catch (IOException e) {
 
       e.printStackTrace();
+      return;
 
     } finally {
 
@@ -101,26 +114,24 @@ public class CompressedFile
       }
     }
 
+    //Add the special "word" that tell that we finished to read the file
+    occurenceCounter.addWordToCounter("EOF");
+
     Word[] words = occurenceCounter.getWordPerOccurences();
 
     System.out.println("Total number of different words : " + words.length);
 
     Node huffManTree = Node.createHuffmanTree(words);
 
-    //huffManTree.printTableCode();
+    huffManTree.printTableCode();
 
-    Hashtable <String, String> codeTable = huffManTree.getEncodedCharacterList();
-
-    writeFileOnDisk(codeTable, path, "output.zz");
-
-    //Debug
-    fromFileOnDisk("output.zz", "output2.txt");
-
+    //Store the codeTable 
+    this.codeTable = huffManTree.getEncodedCharacterList();
   }
 
-  public void fromFileOnDisk(String pathInput, String pathOutput)
+  public void decompressFileToDisk(String outputPath)
   {
-    System.out.println("Uncompress file to " + pathOutput);
+    System.out.println("Uncompress file to " + outputPath);
 
     //File readers/writers
     FileOutputStream outputWriter = null;
@@ -128,8 +139,8 @@ public class CompressedFile
 
     try {
 
-      outputWriter =  new FileOutputStream(pathOutput);
-      inputStream = new FileInputStream(pathInput);
+      outputWriter =  new FileOutputStream(outputPath);
+      inputStream = new FileInputStream(inputPath);
 
       //Will contain the header size, stored in string
       StringBuilder sizeOfHeaderBuilder = new StringBuilder();
@@ -172,7 +183,7 @@ public class CompressedFile
 
       String encodedHeader = headerBuilder.toString();
 
-      //Decode the header from Base64 string to binary data, then cast in Hashtable
+      //Decode (deserialize) the header from Base64 string to binary data, then cast in Hashtable
       Hashtable <String, String> codeTable = null;
       try{
         ByteArrayInputStream bis = new ByteArrayInputStream(Base64.getDecoder().decode(encodedHeader));
@@ -198,7 +209,17 @@ public class CompressedFile
 
       for(String key : keys)
       {
-        String code = codeTable.get(key);
+        String code = null;
+        try {
+          code = codeTable.get(key);
+        }
+        catch(Exception e)
+        {
+          System.out.println("Symbol " + code + " not found in codeTable");
+          e.printStackTrace();
+        }
+
+        //Must always be 1 except if it is EOF
         int codeLength = code.length();
 
         //Create the nodes
@@ -225,7 +246,7 @@ public class CompressedFile
         actualNode.setWord(new Word(key));
       }
 
-      System.out.println("Extracting file ");
+      System.out.println("Extracting file");
 
       //Extracting the file
       byte[] readingBuffer = new byte[READING_BUFFER_SIZE];
@@ -266,7 +287,7 @@ public class CompressedFile
           {
             actualNode = actualNode.getLeftChild();
           }
-          else 
+          else
           {
             actualNode = actualNode.getRightChild();
           }
@@ -285,19 +306,25 @@ public class CompressedFile
 
             System.out.print(tmpString);
 
+            if(tmpString.equals("EOF"))
+            {
+              System.out.println("End of file reached, returning");
+
+              break;
+            }
             //if(indexWrittingBuffer + tmpStringLength > OUTPUT_BUFFER_SIZE)
             //{
-             //outputStringBufferBuilder.append(tmpString.substring(0, OUTPUT_BUFFER_SIZE - indexWrittingBuffer)); 
+             //outputStringBufferBuilder.append(tmpString.substring(0, OUTPUT_BUFFER_SIZE - indexWrittingBuffer));
              //String outputStringBuffer = outputStringBufferBuilder.toString();
 
              //System.out.println(outputStringBuffer);
 
              ////Convert the string to bytes
-                           
+
              ////Write file to disk
-               
+
             //}
-            //else 
+            //else
             //{
               //outputStringBufferBuilder.append(tmpString);
             //}
@@ -331,9 +358,20 @@ public class CompressedFile
     }
   }
 
-  private void writeFileOnDisk(Hashtable <String, String> codeTable, String pathInput, String pathOutput)
+  public void compressFileToDisk(String outputPath)
   {
 
+    if(outputPath == null)
+    {
+      //TODO: Throw exception
+    }
+
+    if(codeTable == null)
+    {
+      System.out.println("The file has not been correcty initalized, doing it first");
+      this.createCodeTable();
+    }
+    
     System.out.println("Opening output file");
 
     FileOutputStream outputWriter = null;
@@ -350,12 +388,11 @@ public class CompressedFile
 
     try {
 
-      outputWriter =  new FileOutputStream(pathOutput);
-      fileReader = new FileReader(pathInput);
+      outputWriter =  new FileOutputStream(outputPath);
+      fileReader = new FileReader(inputPath);
       bufferReader = new BufferedReader(fileReader);
 
-      String currentLine;
-      String code;
+      String code = null;
 
       int codeLength;
 
@@ -367,8 +404,6 @@ public class CompressedFile
 
       String hashCodeToString = Base64.getEncoder().encodeToString(baos.toByteArray());
 
-      System.out.println(hashCodeToString);
-
       //First write the length of the tableCode in file
       System.out.println("Size of input header : " + hashCodeToString.length());
       outputWriter.write(Integer.toString(hashCodeToString.length()).getBytes());
@@ -376,10 +411,6 @@ public class CompressedFile
       outputWriter.write(hashCodeToString.getBytes());
 
       System.out.println("Writing data ...");
-
-      //TODO: To remove
-      int nullcounter = 0;
-      boolean hasBeenPrinted = false;
 
       int read = bufferReader.read(readingBuffer);
 
@@ -389,17 +420,23 @@ public class CompressedFile
         {
           String word = String.valueOf(readingBuffer[v]);
           System.out.print(readingBuffer[v]);
-          code = codeTable.get(word);
-          if(code == null)
-          {
-              System.out.println("The word " + word + " does not exists in the codetable, it is the right one ?");
-              return;
+
+          try{
+            code = codeTable.get(word);
           }
+          catch(Exception e)
+          {
+            System.out.println("Symbol " + word + " not found in codeTable");
+            e.printStackTrace();
+          }
+
           codeLength = code.length();
+
           if(writedInStringBuffer + codeLength > totalBufferSize)
           {
             System.out.println("\n");
-            System.out.println("A " + writedInStringBuffer + " " + outputStringBuffer.toString().length() + " " + codeLength + " " + totalBufferSize);
+            //System.out.println("A " + writedInStringBuffer + " " + outputStringBuffer.toString().length() + " " + codeLength + " " + totalBufferSize);
+            
             //Calculate the extra bytes size
 
             int excess = writedInStringBuffer + codeLength - totalBufferSize;
@@ -409,21 +446,28 @@ public class CompressedFile
             //Convert the buffer to bytes
             String stringToByte = outputStringBuffer.toString();
 
-
             int i;
             for(i = 0; (i + 1) * 7 < totalBufferSize; i++)
             {
               outputByteBuffer[i] = Byte.parseByte( stringToByte.substring(i * 7, (i + 1) * 7), 2);
             }
 
+            System.out.println("StringtoByte" + stringToByte.length());
+            System.out.println("outputByteBuffer" + outputByteBuffer.length);
+
             System.out.println("Last byte is : " + stringToByte.substring(i * 7, (i + 1) * 7));
 
             System.out.println(i + " " + totalBufferSize + " " + stringToByte.length());
+            
+            System.out.println("Writing : " + stringToByte);
+
             //Write the byte buffer
             outputWriter.write(outputByteBuffer);
 
             //Empty the string buffer and add the extra bytes
             outputStringBuffer = new StringBuilder();
+
+            System.out.println("Append " + code.substring(codeLength - excess));
             outputStringBuffer.append(code.substring(codeLength - excess));
             writedInStringBuffer = excess;
           }
@@ -432,14 +476,23 @@ public class CompressedFile
             outputStringBuffer.append(code);
             writedInStringBuffer += codeLength;
           }
-          //if(v > read - 5)
-          //{
-            //System.out.print(readingBuffer[v]);
-          //}
         }
 
         read = bufferReader.read(readingBuffer);
       }
+
+      //Add the EOF symbol to the buffer
+      String endOfFile = null;
+      try {
+        endOfFile = codeTable.get("EOF");
+      }
+      catch(Exception e)
+      {
+        System.out.println("EOF symbol not found in table");
+        e.printStackTrace();
+      }
+
+      outputStringBuffer.append(endOfFile);
 
       //Append the necessary 0 to the end of the string buffer to
       //have a size divisable by 7
