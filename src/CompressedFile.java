@@ -21,8 +21,8 @@ public class CompressedFile
   //public static final int OUTPUT_BUFFER_SIZE = 4 * 5000;
 
   //public static final int READING_BUFFER_SIZE = 4 * 5000;
-  public static final int OUTPUT_BUFFER_SIZE =  8 * 100000;
-  public static final int READING_BUFFER_SIZE =  8 * 100000;
+  public static final int OUTPUT_BUFFER_SIZE =  8 * 1000000;
+  public static final int READING_BUFFER_SIZE =  8 * 1000000;
 
   Hashtable <String, String> codeTable = null;
 
@@ -252,7 +252,6 @@ public class CompressedFile
       byte[] readingBuffer = new byte[READING_BUFFER_SIZE];
       byte[] outputWrittingBuffer = new byte[OUTPUT_BUFFER_SIZE];
 
-      int indexInReadingBuffer = 0;
       int indexWrittingBuffer = 0;
 
       StringBuilder binaryRepresentationBuilder = new StringBuilder();
@@ -304,37 +303,40 @@ public class CompressedFile
             tmpString = tmpWord.getContent();
             tmpStringLength = tmpString.length();
 
-            System.out.print(tmpString);
+            //System.out.print(tmpString);
 
             if(tmpString.equals("EOF"))
             {
-              System.out.println("End of file reached, returning");
-
+              System.out.println("End of file reached");
               break;
             }
-            //if(indexWrittingBuffer + tmpStringLength > OUTPUT_BUFFER_SIZE)
-            //{
-             //outputStringBufferBuilder.append(tmpString.substring(0, OUTPUT_BUFFER_SIZE - indexWrittingBuffer));
-             //String outputStringBuffer = outputStringBufferBuilder.toString();
+
+            if(indexWrittingBuffer + tmpStringLength > OUTPUT_BUFFER_SIZE)
+            {
+             outputStringBufferBuilder.append(tmpString.substring(0, OUTPUT_BUFFER_SIZE - indexWrittingBuffer));
+             String outputStringBuffer = outputStringBufferBuilder.toString();
 
              //System.out.println(outputStringBuffer);
 
-             ////Convert the string to bytes
-
-             ////Write file to disk
-
-            //}
-            //else
-            //{
-              //outputStringBufferBuilder.append(tmpString);
-            //}
+             //Write file to disk
+            outputWriter.write(Integer.toString(outputStringBuffer.length()).getBytes());
+            }
+            else
+            {
+              outputStringBufferBuilder.append(tmpString);
+            }
 
              actualNode = root;
           }
         }
         read = inputStream.read(readingBuffer);
       }
-        System.out.println("Ok");
+
+      System.out.println("Ok");
+
+       
+      String outputStringBuffer = outputStringBufferBuilder.toString();
+      outputWriter.write(outputStringBuffer.getBytes());
 
     } catch(IOException e) {
       e.printStackTrace();
@@ -419,7 +421,7 @@ public class CompressedFile
         for(int v = 0; v < read; v++)
         {
           String word = String.valueOf(readingBuffer[v]);
-          System.out.print(readingBuffer[v]);
+          //System.out.print(readingBuffer[v]);
 
           try{
             code = codeTable.get(word);
@@ -434,13 +436,12 @@ public class CompressedFile
 
           if(writedInStringBuffer + codeLength > totalBufferSize)
           {
-            System.out.println("\n");
             //System.out.println("A " + writedInStringBuffer + " " + outputStringBuffer.toString().length() + " " + codeLength + " " + totalBufferSize);
             
             //Calculate the extra bytes size
 
             int excess = writedInStringBuffer + codeLength - totalBufferSize;
-            System.out.println("Excess : " + excess);
+            //System.out.println("Excess : " + excess);
             outputStringBuffer.append(code.substring(0, codeLength - excess));
 
             //Convert the buffer to bytes
@@ -452,14 +453,14 @@ public class CompressedFile
               outputByteBuffer[i] = Byte.parseByte( stringToByte.substring(i * 7, (i + 1) * 7), 2);
             }
 
-            System.out.println("StringtoByte" + stringToByte.length());
-            System.out.println("outputByteBuffer" + outputByteBuffer.length);
+            //System.out.println("StringtoByte" + stringToByte.length());
+            //System.out.println("outputByteBuffer" + outputByteBuffer.length);
 
-            System.out.println("Last byte is : " + stringToByte.substring(i * 7, (i + 1) * 7));
+            //System.out.println("Last byte is : " + stringToByte.substring(i * 7, (i + 1) * 7));
 
-            System.out.println(i + " " + totalBufferSize + " " + stringToByte.length());
+            //System.out.println(i + " " + totalBufferSize + " " + stringToByte.length());
             
-            System.out.println("Writing : " + stringToByte);
+            //System.out.println("Writing : " + stringToByte);
 
             //Write the byte buffer
             outputWriter.write(outputByteBuffer);
@@ -467,7 +468,7 @@ public class CompressedFile
             //Empty the string buffer and add the extra bytes
             outputStringBuffer = new StringBuilder();
 
-            System.out.println("Append " + code.substring(codeLength - excess));
+            //System.out.println("Append " + code.substring(codeLength - excess));
             outputStringBuffer.append(code.substring(codeLength - excess));
             writedInStringBuffer = excess;
           }
@@ -504,7 +505,7 @@ public class CompressedFile
       }
 
       String stringToByte = outputStringBuffer.toString();
-      System.out.println("Finally writing " + stringToByte + " of length " + stringToByte.length());
+      //System.out.println("Finally writing " + stringToByte + " of length " + stringToByte.length());
       //int outputStringBufferLength = writedInStringBuffer + toAppendToStringBuffer;
       int outputStringBufferLength = stringToByte.length();
       int totalBytesWritten;
